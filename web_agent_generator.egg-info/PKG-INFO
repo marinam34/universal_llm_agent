@@ -1,0 +1,184 @@
+Metadata-Version: 2.4
+Name: web-agent-generator
+Version: 0.1.0
+Summary: Prototype generator of web agents from a single site URL
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.116.0
+Requires-Dist: uvicorn[standard]>=0.35.0
+Requires-Dist: playwright>=1.55.0
+Requires-Dist: httpx>=0.28.0
+Requires-Dist: pydantic>=2.11.0
+Requires-Dist: pydantic-settings>=2.10.0
+Requires-Dist: beautifulsoup4>=4.13.0
+Requires-Dist: lxml>=6.0.0
+Requires-Dist: python-multipart>=0.0.20
+
+# Web Agent Generator Prototype
+
+Прототип генерирует внешнего веб-агента по одному URL сайта: строит карту интерфейса, создаёт JSON-план действий и исполняет безопасные шаги через Playwright с human-in-the-loop перед финальным необратимым действием.
+
+## Что умеет
+
+- Обходит сайт в пределах домена и сохраняет:
+  - страницы и URL,
+  - ссылки, кнопки, формы,
+  - поля ввода и простые подписи,
+  - граф переходов.
+- Строит план действий для пользовательской задачи:
+  - определяет, возможно ли выполнить задачу,
+  - перечисляет недостающие данные,
+  - возвращает текстовое объяснение и строгий JSON-план.
+- Исполняет план через Playwright только безопасными действиями:
+  - `goto(url)`
+  - `click(selector)`
+  - `type(selector, value)`
+  - `select(selector, option)`
+  - `wait_for(selector/text)`
+- Не выполняет автоматически:
+  - submit,
+  - confirm,
+  - pay,
+  - delete.
+- После каждого шага делает простую валидацию:
+  - проверка URL,
+  - проверка ожидаемого элемента/текста,
+  - поиск признаков ошибки на странице.
+- Сохраняет артефакты:
+  - `knowledge_base.json`
+  - `action_plan.json`
+  - `execution_log.json`
+
+## Архитектура
+
+```text
+.
+├── agent/      # LLM-адаптер и построение плана
+├── backend/    # FastAPI API и раздача frontend
+├── core/       # shared config и pydantic-модели
+├── crawler/    # обход сайта и сбор интерфейса
+├── executor/   # безопасное исполнение шагов через Playwright
+├── frontend/   # HTML/CSS/JS интерфейс
+├── kb/         # файловое хранение JSON-артефактов
+├── artifacts/  # создаётся автоматически
+├── .env.example
+├── pyproject.toml
+└── README.md
+```
+
+## Запуск
+
+### 1. Установка
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+playwright install chromium
+cp .env.example .env
+```
+
+### 2. Настройка LLM
+
+Без LLM ключа проект всё равно работает, но использует эвристический fallback-планировщик.
+
+Для OpenRouter укажите в `.env`:
+
+```env
+OPENROUTER_API_KEY=your_key
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+LLM_MODEL=openai/gpt-4o-mini
+```
+
+### 3. Старт
+
+```bash
+uvicorn backend.main:app --reload
+```
+
+Откройте [http://127.0.0.1:8000](http://127.0.0.1:8000).
+
+## Как использовать
+
+1. Введите URL сайта.
+2. Нажмите `Построить базу`.
+3. Введите задачу пользователя и при необходимости JSON с данными (`phone`, `full_name`, `date`, `time`, `branch`).
+4. Нажмите `Сгенерировать план`.
+5. Проверьте JSON-план.
+6. Нажмите `Выполнить до стопа`.
+7. Когда агент остановится перед финальным действием, завершите его вручную в окне Playwright.
+
+## API
+
+### `POST /api/crawl`
+
+```json
+{
+  "url": "https://example.com",
+  "max_pages": 15
+}
+```
+
+### `POST /api/plan`
+
+```json
+{
+  "url": "https://example.com",
+  "user_goal": "Запиши меня на анализ крови",
+  "user_inputs": {
+    "full_name": "Иван Иванов",
+    "phone": "+79990000000",
+    "date": "2026-03-05",
+    "time": "10:00"
+  }
+}
+```
+
+Пример ответа:
+
+```json
+{
+  "goal": "Запиши меня на анализ крови",
+  "possible": true,
+  "missing_inputs": [],
+  "steps": [
+    {
+      "action": "goto",
+      "url": "https://example.com/booking",
+      "reason": "Open booking page"
+    },
+    {
+      "action": "type",
+      "selector": "#phone",
+      "value": "{{phone}}",
+      "reason": "Fill phone"
+    }
+  ],
+  "stop_before": [
+    {
+      "action": "click",
+      "selector": "button[type=submit]"
+    }
+  ],
+  "explanation_for_user": "Проверьте поля перед отправкой."
+}
+```
+
+### `POST /api/execute`
+
+Передайте ранее сгенерированный `plan` целиком.
+
+## Ограничения прототипа
+
+- iframe превью сайта зависит от `X-Frame-Options` и CSP конкретного сайта; если сайт запрещает встраивание, используйте отдельное окно Playwright.
+- Выбор селекторов сейчас эвристический; для сложных SPA-сценариев нужна доработка и более устойчивые локаторы.
+- Планировщик без LLM работает на упрощённых правилах.
+- Не реализованы логин-сессии, anti-bot обход и капча.
+
+## Что улучшать дальше
+
+- Добавить нормализацию и ранжирование локаторов (`get_by_role`, text locators, fallback chains).
+- Хранить KB в SQLite и индексировать элементы для retrieval.
+- Добавить websocket-стрим статуса исполнения.
+- Сохранять скриншоты по шагам и DOM snapshots.
+- Поддержать несколько браузерных сессий и агентов одновременно.

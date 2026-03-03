@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Universal Website Agent</title>
+    <link rel="stylesheet" href="/static/styles.css?v=20260302-2" />
+  </head>
+  <body>
+    <div id="landing" class="landing">
+      <div class="landing-grid">
+        <section class="hero-card">
+          <p class="eyebrow">Prototype</p>
+          <h1>Универсальный агент для сайтов</h1>
+          <p class="lead">
+            Вставьте ссылку на сайт. Система проанализирует интерфейс, создаст агента для этого домена
+            и откроет рабочий экран с сайтом и чатом.
+          </p>
+
+          <div class="hero-form">
+            <input id="site-url" type="url" placeholder="https://example.com" />
+            <button id="create-agent-btn" type="button">Создать агента</button>
+          </div>
+
+          <div class="helper-row">
+            <span class="helper-pill">Без доступа к коду сайта</span>
+            <span class="helper-pill">Автоматизация через Playwright</span>
+            <span class="helper-pill">Финальное действие вручную</span>
+          </div>
+
+          <div id="create-status" class="status" aria-live="polite"></div>
+        </section>
+
+        <section class="preview-card">
+          <div class="preview-topbar">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="preview-label">Preview</span>
+          </div>
+
+          <div class="preview-copy">
+            <p>После создания агента</p>
+            <ul>
+              <li>Сайт анализируется в пределах домена</li>
+              <li>Собирается карта интерфейса</li>
+              <li>Открывается рабочее пространство с чатом агента</li>
+            </ul>
+          </div>
+
+          <iframe id="landing-preview-frame" title="Landing preview"></iframe>
+          <p class="preview-note">
+            Некоторые сайты запрещают iframe. Это не мешает исполнению, потому что действия всё равно
+            выполняются через Playwright.
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <div id="workspace" class="workspace hidden" hidden>
+      <header class="topbar">
+        <div class="topbar-copy">
+          <p class="eyebrow">Agent Ready</p>
+          <h2 id="agent-title">Агент</h2>
+        </div>
+        <div class="topbar-actions">
+          <span id="agent-status" class="badge">Не активен</span>
+          <a id="open-site" href="#" target="_blank" rel="noreferrer">Открыть сайт отдельно</a>
+        </div>
+      </header>
+
+      <main class="site-stage">
+        <img id="site-preview-image" class="site-preview-image hidden" alt="Site preview fallback" />
+        <iframe id="site-frame" title="Site preview"></iframe>
+        <div id="site-preview-banner" class="site-preview-banner hidden">
+          Сайт не разрешил live preview. Показан снимок страницы из обхода.
+        </div>
+
+        <section class="chat-widget">
+          <div class="chat-header">
+            <div class="chat-header-copy">
+              <strong>Чат с агентом</strong>
+              <p id="agent-subtitle">В этом чате можно и задавать вопросы по сайту, и просить выполнить действия.</p>
+            </div>
+            <button id="toggle-chat-btn" class="toggle-chat-btn" type="button" aria-expanded="true">Свернуть</button>
+          </div>
+
+          <div id="chat-feed" class="chat-feed"></div>
+
+          <details class="context-box">
+            <summary>Данные пользователя (JSON)</summary>
+            <textarea id="user-inputs" rows="6">{"full_name":"","phone":"","date":"","time":"","branch":""}</textarea>
+          </details>
+
+          <details class="context-box">
+            <summary>Последний план JSON</summary>
+            <pre id="plan-json"></pre>
+          </details>
+
+          <form id="chat-form" class="chat-form">
+            <textarea id="chat-input" rows="3" placeholder="Например: запиши меня к врачу на завтра после 18:00"></textarea>
+            <button type="submit" id="send-btn">Отправить</button>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js?v=20260302-2"></script>
+  </body>
+</html>
